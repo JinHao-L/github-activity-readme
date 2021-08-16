@@ -8,14 +8,18 @@ const { Toolkit } = require("actions-toolkit");
 const GH_USERNAME = core.getInput("GH_USERNAME");
 const COMMIT_MSG = core.getInput("COMMIT_MSG");
 const MAX_LINES = core.getInput("MAX_LINES");
+
 /**
  * Returns the sentence case representation
  * @param {String} str - the string
  *
  * @returns {String}
  */
-
-const capitalize = (str) => str.slice(0, 1).toUpperCase() + str.slice(1);
+const capitalize = (str) =>
+  str
+    .split("_")
+    .map((word) => word.slice(0, 1).toUpperCase() + word.slice(1))
+    .join(" ");
 
 const urlPrefix = "https://github.com";
 
@@ -25,7 +29,6 @@ const urlPrefix = "https://github.com";
  *
  * @returns {String}
  */
-
 const toUrlFormat = (item) => {
   if (typeof item === "object") {
     return Object.hasOwnProperty.call(item.payload, "issue")
@@ -42,7 +45,6 @@ const toUrlFormat = (item) => {
  *
  * @returns {Promise<void>}
  */
-
 const exec = (cmd, args = []) =>
   new Promise((resolve, reject) => {
     const app = spawn(cmd, args, { stdio: "pipe" });
@@ -66,7 +68,6 @@ const exec = (cmd, args = []) =>
  *
  * @returns {Promise<void>}
  */
-
 const commitFile = async () => {
   await exec("git", [
     "config",
@@ -81,6 +82,26 @@ const commitFile = async () => {
 };
 
 const serializers = {
+  PushEvent: (item) => {
+    const count = `${item.payload.distinct_size} ${
+      item.payload.distinct_size > 1 ? "commits" : "commit"
+    }`;
+    return `🔥 Pushed ${count} to ${toUrlFormat(item.repo.name)}`;
+  },
+  ForkEvent: (item) => {
+    return `🔱 Forked ${toUrlFormat(item.repo.name)} to ${toUrlFormat(
+      item.payload.forkee.full_name
+    )}`;
+  },
+  CreateEvent: (item) => {
+    const emoji = item.payload.ref_type === "repository" ? "🌱" : "🔨";
+    return `${emoji} Created new ${capitalize(
+      item.payload.ref_type
+    )} in ${toUrlFormat(item.repo.name)}`;
+  },
+  WatchEvent: (item) => {
+    return `⭐ Starred ${toUrlFormat(item.repo.name)}`;
+  },
   IssueCommentEvent: (item) => {
     return `🗣 Commented on ${toUrlFormat(item)} in ${toUrlFormat(
       item.repo.name
@@ -140,7 +161,7 @@ Toolkit.run(
     );
 
     if (!content.length) {
-      tools.exit.failure("No PullRequest/Issue/IssueComment events found");
+      tools.exit.failure("No events found");
     }
 
     if (content.length < 5) {
