@@ -1620,6 +1620,8 @@ const commitFile = async () => {
 
 const serializers = {
   PushEvent: (item) => {
+    if (item.payload.distinct_size === 0) return null;
+
     const count = `${item.payload.distinct_size} ${
       item.payload.distinct_size > 1 ? "commits" : "commit"
     }`;
@@ -1631,6 +1633,8 @@ const serializers = {
     )}`;
   },
   CreateEvent: (item) => {
+    if (item.payload.ref_type === "branch") return null;
+
     const emoji = item.payload.ref_type === "repository" ? "🌱" : "🔨";
     return `${emoji} Created new ${capitalize(
       item.payload.ref_type
@@ -1670,13 +1674,37 @@ Toolkit.run(
       `Activity for ${GH_USERNAME}, ${events.data.length} events found.`
     );
 
-    const content = events.data
-      // Filter out any boring activity
-      .filter((event) => serializers.hasOwnProperty(event.type))
-      // We only have five lines to work with
-      .slice(0, MAX_LINES)
-      // Call the serializer to construct a string
-      .map((item) => serializers[item.type](item));
+    let prevEvent = null;
+    const content = [];
+
+    for (let event in events.data) {
+      if (content.length > MAX_LINES) break;
+      if (!serializers.hasOwnProperty(event.type)) continue;
+      let isAppend = true;
+      if (
+        prevEvent &&
+        prevEvent.repo.name === event.repo.name &&
+        prevEvent.type === event.type
+      ) {
+        // merge same event type for same repo
+        isAppend = false;
+
+        if (event.type === "PushEvent") {
+          event.payload.distinct_size += prevEvent.payload.distinct_size;
+        } else if (event.type === "PullRequestEvent") {
+          isAppend = true;
+        }
+      }
+
+      const record = serializers[event.type](event);
+      if (!record) continue;
+
+      if (isAppend) {
+        content.push(record);
+      } else {
+        content[content.length - 1] = record;
+      }
+    }
 
     const readmeContent = fs.readFileSync("./README.md", "utf-8").split("\n");
 
@@ -15418,7 +15446,7 @@ module.exports = options => {
 /***/ 969:
 /***/ (function(module) {
 
-module.exports = {"_args":[["signale@1.4.0","/home/kdream/Personal/git/github-activity-readme"]],"_from":"signale@1.4.0","_id":"signale@1.4.0","_inBundle":false,"_integrity":"sha512-iuh+gPf28RkltuJC7W5MRi6XAjTDCAPC/prJUpQoG4vIP3MJZ+GTydVnodXA7pwvTKb2cA0m9OFZW/cdWy/I/w==","_location":"/signale","_phantomChildren":{},"_requested":{"type":"version","registry":true,"raw":"signale@1.4.0","name":"signale","escapedName":"signale","rawSpec":"1.4.0","saveSpec":null,"fetchSpec":"1.4.0"},"_requiredBy":["/actions-toolkit"],"_resolved":"https://registry.npmjs.org/signale/-/signale-1.4.0.tgz","_spec":"1.4.0","_where":"/home/kdream/Personal/git/github-activity-readme","author":{"name":"Klaus Sinani","email":"klaussinani@gmail.com","url":"https://klaussinani.github.io"},"bugs":{"url":"https://github.com/klaussinani/signale/issues"},"dependencies":{"chalk":"^2.3.2","figures":"^2.0.0","pkg-conf":"^2.1.0"},"description":"👋 Hackable console logger","devDependencies":{"xo":"*"},"engines":{"node":">=6"},"files":["index.js","signale.js","types.js"],"homepage":"https://github.com/klaussinani/signale#readme","keywords":["hackable","colorful","console","logger"],"license":"MIT","maintainers":[{"name":"Mario Sinani","email":"mariosinani@protonmail.ch","url":"https://mariocfhq.github.io"}],"name":"signale","options":{"default":{"displayScope":true,"displayBadge":true,"displayDate":false,"displayFilename":false,"displayLabel":true,"displayTimestamp":false,"underlineLabel":true,"underlineMessage":false,"underlinePrefix":false,"underlineSuffix":false,"uppercaseLabel":false}},"repository":{"type":"git","url":"git+https://github.com/klaussinani/signale.git"},"scripts":{"test":"xo"},"version":"1.4.0","xo":{"space":2}};
+module.exports = {"name":"signale","version":"1.4.0","description":"👋 Hackable console logger","license":"MIT","repository":"klaussinani/signale","author":{"name":"Klaus Sinani","email":"klaussinani@gmail.com","url":"https://klaussinani.github.io"},"maintainers":[{"name":"Mario Sinani","email":"mariosinani@protonmail.ch","url":"https://mariocfhq.github.io"}],"engines":{"node":">=6"},"files":["index.js","signale.js","types.js"],"keywords":["hackable","colorful","console","logger"],"scripts":{"test":"xo"},"dependencies":{"chalk":"^2.3.2","figures":"^2.0.0","pkg-conf":"^2.1.0"},"devDependencies":{"xo":"*"},"options":{"default":{"displayScope":true,"displayBadge":true,"displayDate":false,"displayFilename":false,"displayLabel":true,"displayTimestamp":false,"underlineLabel":true,"underlineMessage":false,"underlinePrefix":false,"underlineSuffix":false,"uppercaseLabel":false}},"xo":{"space":2}};
 
 /***/ }),
 
