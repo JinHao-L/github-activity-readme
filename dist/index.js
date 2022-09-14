@@ -1677,9 +1677,15 @@ Toolkit.run(
     let prevEvent = null;
     const content = [];
 
-    for (let event in events.data) {
-      if (content.length > MAX_LINES) break;
+    for (
+      let i = 0;
+      i < events.data.length && content.length <= MAX_LINES;
+      i++
+    ) {
+      const event = events.data[i];
+
       if (!serializers.hasOwnProperty(event.type)) continue;
+      tools.log.debug(event.type);
       let isAppend = true;
       if (
         prevEvent &&
@@ -1694,16 +1700,20 @@ Toolkit.run(
         } else if (event.type === "PullRequestEvent") {
           isAppend = true;
         }
+
+        if (!isAppend) tools.log.debug("Merging");
       }
 
       const record = serializers[event.type](event);
       if (!record) continue;
-
       if (isAppend) {
+        tools.log.debug(record);
         content.push(record);
       } else {
+        tools.log.debug(record);
         content[content.length - 1] = record;
       }
+      prevEvent = event;
     }
 
     const readmeContent = fs.readFileSync("./README.md", "utf-8").split("\n");
