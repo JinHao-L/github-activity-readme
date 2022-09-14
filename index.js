@@ -148,7 +148,6 @@ Toolkit.run(
       const event = events.data[i];
 
       if (!serializers.hasOwnProperty(event.type)) continue;
-      tools.log.debug(event.type);
       let isAppend = true;
       if (
         prevEvent &&
@@ -163,21 +162,19 @@ Toolkit.run(
         } else if (event.type === "PullRequestEvent") {
           isAppend = true;
         }
-
-        if (!isAppend) tools.log.debug("Merging");
       }
 
       const record = serializers[event.type](event);
       if (!record) continue;
       if (isAppend) {
-        tools.log.debug(record);
         content.push(record);
       } else {
-        tools.log.debug(record);
         content[content.length - 1] = record;
       }
       prevEvent = event;
     }
+    tools.log.debug(content.length);
+    content.forEach((text) => tools.log.debug(text));
 
     const readmeContent = fs.readFileSync("./README.md", "utf-8").split("\n");
 
